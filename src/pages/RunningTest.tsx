@@ -51,10 +51,11 @@ export default function RunningTest() {
   };
 
   const handleRecordTime = async () => {
-    if (!selectedParticipant || !minutes || !seconds) return;
+    if (!selectedParticipant || !minutes) return;
+    if (parseInt(minutes || '0') <= 6 && !seconds) return;
     setIsLoading(true);
 
-    const totalSeconds = parseInt(minutes) * 60 + parseFloat(seconds);
+    const totalSeconds = parseInt(minutes || '0') * 60 + parseFloat(seconds || '0');
     const result = totalSeconds <= 360 ? 'Qualified' : 'Disqualified';
 
     try {
@@ -90,7 +91,7 @@ export default function RunningTest() {
               <Users className="h-4 w-4 text-primary" />
               <span className="text-xs text-muted-foreground uppercase">Total Batch</span>
             </div>
-            <span className="text-2xl font-bold text-foreground">{total}/150</span>
+            <span className="text-2xl font-bold text-foreground">{total}</span>
           </div>
           <div className="stat-card flex-1 text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
@@ -209,10 +210,10 @@ export default function RunningTest() {
                     />
                   </div>
                 </div>
-                {minutes && seconds && (
+                {(minutes || seconds) && (
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground">
-                      Total: {minutes}m {seconds}s = {parseInt(minutes || '0') * 60 + parseFloat(seconds || '0')}s
+                      Total: {minutes || '0'}m {seconds || '0'}s = {parseInt(minutes || '0') * 60 + parseFloat(seconds || '0')}s
                     </p>
                     <Badge
                       variant={parseInt(minutes || '0') * 60 + parseFloat(seconds || '0') <= 360 ? 'default' : 'destructive'}
@@ -226,7 +227,7 @@ export default function RunningTest() {
             )}
             <DialogFooter>
               <Button variant="outline" onClick={() => setSelectedParticipant(null)}>Cancel</Button>
-              <Button className="gradient-primary text-primary-foreground" onClick={handleRecordTime} disabled={isLoading || !minutes || !seconds}>
+              <Button className="gradient-primary text-primary-foreground" onClick={handleRecordTime} disabled={isLoading || !minutes || (parseInt(minutes || '0') <= 6 && !seconds)}>
                 {isLoading ? 'Saving...' : 'Save Result'}
               </Button>
             </DialogFooter>

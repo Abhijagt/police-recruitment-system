@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      officers: {
+        Row: {
+          id: string
+          name: string
+          email: string
+          police_id: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          email: string
+          police_id: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          email?: string
+          police_id?: string
+        }
+        Relationships: []
+      }
       participants: {
         Row: {
           age: number

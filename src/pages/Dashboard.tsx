@@ -102,7 +102,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between p-5 border-b">
             <h2 className="font-semibold text-foreground">Recent Running Test Entries</h2>
             <div className="flex gap-2">
-              <Button size="sm" className="gradient-primary text-primary-foreground" onClick={() => navigate('/running-test')}>
+              <Button size="sm" className="gradient-primary text-primary-foreground" onClick={() => navigate('/add-participant')}>
                 <Plus className="h-4 w-4 mr-1" /> New Entry
               </Button>
             </div>

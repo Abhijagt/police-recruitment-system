@@ -8,12 +8,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { UserPlus, Hash, User, Calendar, MapPin, Tag, Layers } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
 
-const districts = ['Mumbai', 'Pune', 'Nagpur', 'Nashik','Nanded', 'Thane', 'Chhatrapati Sambhajinagar', 'Solapur', 'Kolhapur'];
+const districts = ["Ahilyanagar", "Akola", "Amravati", "Chhatrapati Sambhajinagar", "Beed",
+  "Bhandara", "Buldhana", "Chandrapur", "Dhule", "Gadchiroli",
+  "Gondia", "Hingoli", "Jalgaon", "Jalna", "Kolhapur",
+  "Latur", "Mumbai City", "Mumbai Suburban", "Nagpur",
+  "Nanded", "Nandurbar", "Nashik", "Osmanabad",
+  "Palghar", "Parbhani", "Pune", "Raigad", "Ratnagiri",
+  "Sangli", "Satara", "Sindhudurg", "Solapur",
+  "Thane", "Wardha", "Washim", "Yavatmal"];
 const categories = ['General', 'OBC', 'SC', 'ST', 'EWS'];
-const genders = ['Male', 'Female','Other'];
+const genders = ['Male', 'Female', 'Other'];
 
 export default function AddParticipant() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     participant_id: '',
     name: '',
@@ -43,6 +52,7 @@ export default function AddParticipant() {
       if (error) throw error;
       toast.success('Participant added successfully!');
       setForm({ participant_id: '', name: '', age: '', gender: '', district: '', category: '', batch_no: '' });
+      navigate('/running-test');
     } catch (err: any) {
       toast.error(err.message || 'Failed to add participant');
     } finally {
@@ -167,7 +177,7 @@ export default function AddParticipant() {
 
               {/* Actions */}
               <div className="flex gap-3 pt-2">
-          
+
                 <Button type="button" variant="outline" className="flex-1" onClick={handleReset}>
                   Cancel
                 </Button>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Shield, User, Lock, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,7 @@ import { toast } from 'sonner';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [policeId, setPoliceId] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -23,6 +25,30 @@ export default function Login() {
 
     try {
       if (isSignUp) {
+        if (!email.endsWith('@police.gov.in')) {
+          throw new Error('Only @police.gov.in email addresses are allowed.');
+        }
+
+        if (!policeId) {
+          throw new Error('Police ID is required for signup.');
+        }
+
+        // Verify officer in the whitelist
+        const { data: officers, error: checkError } = await supabase
+          .from('officers')
+          .select('id')
+          .eq('email', email)
+          .eq('police_id', policeId)
+          .maybeSingle();
+
+        if (checkError) {
+          throw new Error('Database error during verification. Please try again.');
+        }
+
+        if (!officers) {
+          throw new Error('You are not an authorized police officer');
+        }
+
         const { error } = await signUp(email, password);
         if (error) throw error;
         toast.success('Account created! Check your email to verify.');
@@ -103,6 +129,24 @@ export default function Login() {
                   </button>
                 </div>
               </div>
+
+              {isSignUp && (
+                <div className="space-y-2">
+                  <Label htmlFor="policeId">Police ID</Label>
+                  <div className="relative">
+                    <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="policeId"
+                      type="text"
+                      placeholder="Enter your Police ID"
+                      value={policeId}
+                      onChange={(e) => setPoliceId(e.target.value)}
+                      className="pl-10"
+                      required={isSignUp}
+                    />
+                  </div>
+                </div>
+              )}
 
               <Button type="submit" className="w-full gradient-primary text-primary-foreground font-semibold h-12 text-base" disabled={isLoading}>
                 {isLoading ? 'Signing in...' : isSignUp ? 'Create Account' : 'Sign In to Dashboard →'}
