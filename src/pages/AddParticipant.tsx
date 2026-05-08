@@ -22,6 +22,85 @@ const districts = ["Ahilyanagar", "Akola", "Amravati", "Chhatrapati Sambhajinaga
 const categories = ['General', 'OBC', 'SC', 'ST', 'EWS'];
 const genders = ['Male', 'Female', 'Other'];
 
+// ── Validation rules ──────────────────────────────────────────────────────────
+const PARTICIPANT_ID_REGEX = /^PR-\d{4}-\d{1,6}$/;
+const NAME_REGEX = /^[A-Za-z\s.'-]{3,60}$/;
+const BATCH_NO_REGEX = /^B-\d{1,3}$/;
+
+interface FormErrors {
+  participant_id?: string;
+  name?: string;
+  age?: string;
+  gender?: string;
+  district?: string;
+  category?: string;
+  batch_no?: string;
+}
+
+function validateForm(form: {
+  participant_id: string;
+  name: string;
+  age: string;
+  gender: string;
+  district: string;
+  category: string;
+  batch_no: string;
+}): FormErrors {
+  const errors: FormErrors = {};
+
+  // Participant ID
+  if (!form.participant_id.trim()) {
+    errors.participant_id = 'Participant ID is required.';
+  } else if (!PARTICIPANT_ID_REGEX.test(form.participant_id.trim())) {
+    errors.participant_id = 'Format must be PR-YYYY-NNNN (e.g. PR-2024-8892).';
+  }
+
+  // Name
+  if (!form.name.trim()) {
+    errors.name = 'Full name is required.';
+  } else if (!NAME_REGEX.test(form.name.trim())) {
+    errors.name = 'Name must be 3–60 characters, letters only (spaces, hyphens, apostrophes allowed).';
+  }
+
+  // Age
+  if (!form.age) {
+    errors.age = 'Age is required.';
+  } else {
+    const ageNum = Number(form.age);
+    if (!Number.isInteger(ageNum) || form.age.includes('.')) {
+      errors.age = 'Age must be a whole number.';
+    } else if (ageNum < 18 || ageNum > 40) {
+      errors.age = 'Age must be between 18 and 40.';
+    }
+  }
+
+  // Gender
+  if (!form.gender) {
+    errors.gender = 'Please select a gender.';
+  }
+
+  // District
+  if (!form.district) {
+    errors.district = 'Please select a home district.';
+  }
+
+  // Category
+  if (!form.category) {
+    errors.category = 'Please select a category.';
+  }
+
+  // Batch Number
+  if (!form.batch_no.trim()) {
+    errors.batch_no = 'Batch number is required.';
+  } else if (!BATCH_NO_REGEX.test(form.batch_no.trim())) {
+    errors.batch_no = 'Format must be B-N or B-NN (e.g. B-12).';
+  }
+
+  return errors;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function AddParticipant() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
@@ -33,6 +112,8 @@ export default function AddParticipant() {
     category: '',
     batch_no: '',
   });
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [participants, setParticipants] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -50,40 +131,78 @@ export default function AddParticipant() {
     setParticipants(data || []);
   };
 
+  // Validate a single field on blur
+  const handleBlur = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    setErrors(validateForm(form));
+  };
+
+  // Live-validate only already-touched fields
+  const handleChange = (field: string, value: string) => {
+    const updated = { ...form, [field]: value };
+    setForm(updated);
+    if (touched[field]) {
+      setErrors(validateForm(updated));
+    }
+  };
+
+  // Select fields mark themselves touched immediately on change
+  const handleSelectChange = (field: string, value: string) => {
+    const updated = { ...form, [field]: value };
+    setForm(updated);
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    setErrors(validateForm(updated));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
 
+    // Mark all fields as touched so every error shows
+    const allTouched: Record<string, boolean> = {};
+    Object.keys(form).forEach((k) => (allTouched[k] = true));
+    setTouched(allTouched);
+
+    const validationErrors = validateForm(form);
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      toast.error('Please fix the errors before submitting.');
+      return;
+    }
+
+    setIsLoading(true);
     try {
       if (isEditing) {
         const { error } = await supabase.from('participants').update({
-          participant_id: form.participant_id,
-          name: form.name,
+          participant_id: form.participant_id.trim(),
+          name: form.name.trim(),
           age: parseInt(form.age),
           gender: form.gender,
           district: form.district,
           category: form.category,
-          batch_no: form.batch_no,
+          batch_no: form.batch_no.trim(),
         }).eq('participant_id', originalId);
 
         if (error) throw error;
         toast.success('Participant updated successfully!');
       } else {
         const { error } = await supabase.from('participants').insert({
-          participant_id: form.participant_id,
-          name: form.name,
+          participant_id: form.participant_id.trim(),
+          name: form.name.trim(),
           age: parseInt(form.age),
           gender: form.gender,
           district: form.district,
           category: form.category,
-          batch_no: form.batch_no,
+          batch_no: form.batch_no.trim(),
         });
 
         if (error) throw error;
         toast.success('Participant added successfully!');
       }
-      
+
       setForm({ participant_id: '', name: '', age: '', gender: '', district: '', category: '', batch_no: '' });
+      setErrors({});
+      setTouched({});
       setIsEditing(false);
       setOriginalId('');
       fetchParticipants();
@@ -104,6 +223,8 @@ export default function AddParticipant() {
       category: p.category,
       batch_no: p.batch_no,
     });
+    setErrors({});
+    setTouched({});
     setOriginalId(p.participant_id);
     setIsEditing(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -123,9 +244,15 @@ export default function AddParticipant() {
 
   const handleReset = () => {
     setForm({ participant_id: '', name: '', age: '', gender: '', district: '', category: '', batch_no: '' });
+    setErrors({});
+    setTouched({});
     setIsEditing(false);
     setOriginalId('');
   };
+
+  // Helper: error message below a field
+  const FieldError = ({ msg }: { msg?: string }) =>
+    msg ? <p className="text-xs text-red-500 mt-1">{msg}</p> : null;
 
   return (
     <AppLayout title={isEditing ? "Edit Participant" : "Add New Participant"}>
@@ -147,28 +274,40 @@ export default function AddParticipant() {
             </div>
           </CardHeader>
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <CardContent className="space-y-6">
               {/* Identification */}
               <div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Participant ID</Label>
+                    <Label>Participant ID <span className="text-red-500">*</span></Label>
                     <Input
                       placeholder="e.g. PR-2024-8892"
                       value={form.participant_id}
-                      onChange={(e) => setForm({ ...form, participant_id: e.target.value })}
-                      required
+                      onChange={(e) => handleChange('participant_id', e.target.value)}
+                      onBlur={() => handleBlur('participant_id')}
+                      maxLength={20}
+                      className={touched.participant_id && errors.participant_id ? 'border-red-500 focus-visible:ring-red-500' : ''}
                     />
+                    <FieldError msg={touched.participant_id ? errors.participant_id : undefined} />
+                    <p className="text-xs text-muted-foreground">Format: PR-YYYY-NNNN</p>
                   </div>
                   <div className="space-y-2">
-                    <Label>Full Legal Name</Label>
+                    <Label>Full Legal Name <span className="text-red-500">*</span></Label>
                     <Input
                       placeholder="Enter as per Aadhaar/ID"
                       value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      required
+                      onChange={(e) => {
+                        // Block digits from being typed in the name field
+                        const val = e.target.value.replace(/[0-9]/g, '');
+                        handleChange('name', val);
+                      }}
+                      onBlur={() => handleBlur('name')}
+                      maxLength={60}
+                      className={touched.name && errors.name ? 'border-red-500 focus-visible:ring-red-500' : ''}
                     />
+                    <FieldError msg={touched.name ? errors.name : undefined} />
+                    <p className="text-xs text-muted-foreground">Letters only, 3–60 characters</p>
                   </div>
                 </div>
               </div>
@@ -177,34 +316,44 @@ export default function AddParticipant() {
               <div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Age</Label>
+                    <Label>Age <span className="text-red-500">*</span></Label>
                     <Input
                       type="number"
-                      placeholder="Years"
+                      placeholder="18 – 40"
                       value={form.age}
-                      onChange={(e) => setForm({ ...form, age: e.target.value })}
-                      required
+                      onChange={(e) => handleChange('age', e.target.value)}
+                      onBlur={() => handleBlur('age')}
                       min={18}
                       max={40}
+                      step={1}
+                      className={touched.age && errors.age ? 'border-red-500 focus-visible:ring-red-500' : ''}
                     />
+                    <FieldError msg={touched.age ? errors.age : undefined} />
+                    <p className="text-xs text-muted-foreground">Must be between 18 and 40</p>
                   </div>
                   <div className="space-y-2">
-                    <Label>Gender</Label>
-                    <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select Gender" /></SelectTrigger>
+                    <Label>Gender <span className="text-red-500">*</span></Label>
+                    <Select value={form.gender} onValueChange={(v) => handleSelectChange('gender', v)}>
+                      <SelectTrigger className={touched.gender && errors.gender ? 'border-red-500 focus:ring-red-500' : ''}>
+                        <SelectValue placeholder="Select Gender" />
+                      </SelectTrigger>
                       <SelectContent>
                         {genders.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    <FieldError msg={touched.gender ? errors.gender : undefined} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Home District</Label>
-                    <Select value={form.district} onValueChange={(v) => setForm({ ...form, district: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select District" /></SelectTrigger>
+                    <Label>Home District <span className="text-red-500">*</span></Label>
+                    <Select value={form.district} onValueChange={(v) => handleSelectChange('district', v)}>
+                      <SelectTrigger className={touched.district && errors.district ? 'border-red-500 focus:ring-red-500' : ''}>
+                        <SelectValue placeholder="Select District" />
+                      </SelectTrigger>
                       <SelectContent>
                         {districts.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    <FieldError msg={touched.district ? errors.district : undefined} />
                   </div>
                 </div>
               </div>
@@ -213,22 +362,29 @@ export default function AddParticipant() {
               <div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Category</Label>
-                    <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
+                    <Label>Category <span className="text-red-500">*</span></Label>
+                    <Select value={form.category} onValueChange={(v) => handleSelectChange('category', v)}>
+                      <SelectTrigger className={touched.category && errors.category ? 'border-red-500 focus:ring-red-500' : ''}>
+                        <SelectValue placeholder="Select Category" />
+                      </SelectTrigger>
                       <SelectContent>
                         {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    <FieldError msg={touched.category ? errors.category : undefined} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Batch Number</Label>
+                    <Label>Batch Number <span className="text-red-500">*</span></Label>
                     <Input
                       placeholder="e.g. B-12"
                       value={form.batch_no}
-                      onChange={(e) => setForm({ ...form, batch_no: e.target.value })}
-                      required
+                      onChange={(e) => handleChange('batch_no', e.target.value.toUpperCase())}
+                      onBlur={() => handleBlur('batch_no')}
+                      maxLength={6}
+                      className={touched.batch_no && errors.batch_no ? 'border-red-500 focus-visible:ring-red-500' : ''}
                     />
+                    <FieldError msg={touched.batch_no ? errors.batch_no : undefined} />
+                    <p className="text-xs text-muted-foreground">Format: B-N or B-NN (e.g. B-12)</p>
                   </div>
                 </div>
               </div>
